@@ -488,10 +488,10 @@ app.post("/api/accounts/tv-login", async (req, res) => {
       getAxiosConfig(account, "application/x-www-form-urlencoded", 15000)
     );
 
-    addLog(account, "🤝 Code validated. Waiting 2.5 seconds for device list synchronization...");
+    addLog(account, "🤝 Code validated. Waiting 7 seconds for device list synchronization...");
     
-    // 4. Wait for 2.5 seconds to let session list update
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    // 4. Wait for 7 seconds to let session list update
+    await new Promise(resolve => setTimeout(resolve, 7000));
 
     // 5. Fetch updated devices list
     addLog(account, "📸 Fetching updated device list after validation...");
@@ -560,16 +560,13 @@ app.get("/api/settings", (req, res) => {
 
 // Update global settings
 app.post("/api/settings/update", (req, res) => {
-  const { scanInterval, selfPingUrl, proxyUrl } = req.body;
+  const { scanInterval, proxyUrl } = req.body;
   const intervalVal = parseInt(scanInterval);
   if (isNaN(intervalVal) || intervalVal < 3) {
     return res.status(400).json({ error: "Scan interval must be a number of at least 3 seconds" });
   }
 
   globalSettings.scanInterval = intervalVal;
-  if (typeof selfPingUrl === "string") {
-    globalSettings.selfPingUrl = selfPingUrl.trim();
-  }
   if (typeof proxyUrl === "string") {
     globalSettings.proxyUrl = proxyUrl.trim();
   }
@@ -588,13 +585,11 @@ app.post("/api/settings/update", (req, res) => {
 
 // Keep-Alive Self-Ping Loop (prevent Render from spinning down)
 setInterval(async () => {
-  if (globalSettings.selfPingUrl && globalSettings.selfPingUrl !== "xyz") {
-    try {
-      await axios.get(globalSettings.selfPingUrl, { timeout: 5000 });
-      console.log(`[Keep-Alive] Sent self-ping to: ${globalSettings.selfPingUrl}`);
-    } catch (err) {
-      console.warn(`[Keep-Alive] Self-ping failed for ${globalSettings.selfPingUrl}: ${err.message}`);
-    }
+  try {
+    await axios.get("https://logoutautomation.onrender.com/api/settings", { timeout: 5000 });
+    console.log("[Keep-Alive] Sent self-ping to: https://logoutautomation.onrender.com/api/settings");
+  } catch (err) {
+    console.warn(`[Keep-Alive] Self-ping failed: ${err.message}`);
   }
 }, 10000);
 

@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Global settings
   const inputScanInterval = document.getElementById("setting-scan-interval");
-  const inputSelfPingUrl = document.getElementById("setting-self-ping-url");
   const inputProxyUrl = document.getElementById("setting-proxy-url");
   const btnSaveSettings = document.getElementById("btn-save-settings");
 
@@ -48,9 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (settings.scanInterval) {
           inputScanInterval.value = settings.scanInterval;
         }
-        if (settings.selfPingUrl) {
-          inputSelfPingUrl.value = settings.selfPingUrl;
-        }
+
         if (settings.proxyUrl !== undefined) {
           inputProxyUrl.value = settings.proxyUrl;
         }
@@ -63,14 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Save settings event listener
   btnSaveSettings.addEventListener("click", async () => {
     const scanInterval = parseInt(inputScanInterval.value);
-    const selfPingUrl = inputSelfPingUrl.value.trim();
     const proxyUrl = inputProxyUrl.value.trim();
     if (isNaN(scanInterval) || scanInterval < 3) {
       alert("Please enter a scan interval of at least 3 seconds.");
-      return;
-    }
-    if (!selfPingUrl) {
-      alert("Please enter a valid Keep-Alive Ping URL or 'xyz' to disable.");
       return;
     }
 
@@ -80,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/settings/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanInterval, selfPingUrl, proxyUrl })
+        body: JSON.stringify({ scanInterval, proxyUrl })
       });
       const data = await res.json();
       if (data.success) {
