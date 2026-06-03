@@ -488,10 +488,10 @@ app.post("/api/accounts/tv-login", async (req, res) => {
       getAxiosConfig(account, "application/x-www-form-urlencoded", 15000)
     );
 
-    addLog(account, "🤝 Code validated. Waiting 7 seconds for device list synchronization...");
+    addLog(account, "🤝 Code validated. Waiting 2 seconds for device list synchronization...");
     
-    // 4. Wait for 7 seconds to let session list update
-    await new Promise(resolve => setTimeout(resolve, 7000));
+    // 4. Wait for 2 seconds to let session list update
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // 5. Fetch updated devices list
     addLog(account, "📸 Fetching updated device list after validation...");
@@ -500,20 +500,31 @@ app.post("/api/accounts/tv-login", async (req, res) => {
     // 6. Find the newly registered device
     let pairedDevice = null;
     if (devicesAfter && devicesAfter.length > 0) {
-      // Find a device ID in devicesAfter that is not present in devicesBefore
+      // Find a device with deviceSegmentName === "Smart TV"
       pairedDevice = devicesAfter.find(afterDev => 
+        afterDev.deviceSegmentName === "Smart TV" &&
         !devicesBefore.some(beforeDev => beforeDev.deviceId === afterDev.deviceId)
       );
+      if (!pairedDevice) {
+        pairedDevice = devicesAfter.find(afterDev => afterDev.deviceSegmentName === "Smart TV");
+      }
+      
+      // Fallback: If no Smart TV is found, find any new device
+      if (!pairedDevice) {
+        pairedDevice = devicesAfter.find(afterDev => 
+          !devicesBefore.some(beforeDev => beforeDev.deviceId === afterDev.deviceId)
+        );
+      }
     }
 
     if (pairedDevice && pairedDevice.deviceId) {
       const newId = pairedDevice.deviceId;
-      addLog(account, `💡 Detected new device: ${newId} (${pairedDevice.deviceName || "TV Device"})`);
+      addLog(account, `💡 Detected device: ${newId} (${pairedDevice.deviceName || "TV Device"}) [Segment: ${pairedDevice.deviceSegmentName || "unknown"}]`);
       
       if (!account.whitelist.includes(newId)) {
         account.whitelist.push(newId);
         saveAccounts();
-        addLog(account, `🎉 Successfully whitelisted new device ID: ${newId}`);
+        addLog(account, `🎉 Successfully whitelisted device ID: ${newId}`);
         io.emit("accounts_update", getSanitizedAccounts());
         res.json({ success: true, deviceId: newId, message: "Successfully paired and whitelisted" });
       } else {
