@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const qs = require("querystring");
+const { HttpsProxyAgent } = require("https-proxy-agent");
 
 const app = express();
 const server = http.createServer(app);
@@ -73,13 +74,16 @@ function saveAccounts() {
 }
 
 const SETTINGS_FILE = path.join(__dirname, "settings.json");
-let globalSettings = { scanInterval: 10, selfPingUrl: "xyz" };
+let globalSettings = { scanInterval: 10, selfPingUrl: "xyz", proxyUrl: "" };
 
 function loadSettings() {
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = fs.readFileSync(SETTINGS_FILE, "utf8");
       globalSettings = JSON.parse(data);
+      if (globalSettings.proxyUrl === undefined) {
+        globalSettings.proxyUrl = "";
+      }
       console.log("Loaded global settings:", globalSettings);
     } else {
       saveSettings();
@@ -135,6 +139,22 @@ function getApiBase(account) {
   return isStage ? "https://consumer-am.ctrp-stag.stgbpkastro.com" : "https://consumer-am.ctrp.astro.com.my";
 }
 
+function getAxiosConfig(account, contentType = "application/json", customTimeout = 15000) {
+  const config = {
+    headers: getHeaders(account, contentType),
+    timeout: customTimeout,
+  };
+  if (globalSettings.proxyUrl && globalSettings.proxyUrl !== "xyz" && globalSettings.proxyUrl.trim() !== "") {
+    try {
+      config.httpsAgent = new HttpsProxyAgent(globalSettings.proxyUrl.trim());
+      config.proxy = false; // Disable axios default proxy logic when explicit agent is set
+    } catch (e) {
+      console.error("Invalid proxy URL:", e.message);
+    }
+  }
+  return config;
+}
+
 async function refreshAccessToken(account) {
   if (account.isRefreshing) {
     addLog(account, "⏳ Token refresh already running...");
@@ -151,10 +171,7 @@ async function refreshAccessToken(account) {
         grant_type: "urn:ietf:params:oauth:grant-type:refresh_token",
         refresh_token: account.refresh_token,
       }),
-      {
-        headers: getHeaders(account, "application/x-www-form-urlencoded"),
-        timeout: 15000,
-      }
+      getAxiosConfig(account, "application/x-www-form-urlencoded", 15000)
     );
 
     const data = response.data || {};
@@ -191,10 +208,7 @@ async function refreshAccessToken(account) {
 
 async function getDevicesList(account, retry = true) {
   try {
-    const response = await axios.get(`${getApiBase(account)}/v1/devices?limit=100`, {
-      headers: getHeaders(account),
-      timeout: 10000,
-    });
+    const response = await axios.get(`${getApiBase(account)}/v1/devices?limit=100`, getAxiosConfig(account, "application/json", 10000));
     return response.data?.data || [];
   } catch (err) {
     const status = err.response?.status;
@@ -213,9 +227,8 @@ async function deleteDevice(account, deviceId, retry = true) {
   try {
     const url = `${getApiBase(account)}/v1/devices/${deviceId}`;
     await axios.delete(url, {
-      headers: getHeaders(account),
+      ...getAxiosConfig(account, "application/json", 10000),
       data: {},
-      timeout: 10000,
     });
     addLog(account, `❌ Logged out unauthorized device: ${deviceId}`);
     return true;
@@ -467,15 +480,12 @@ app.post("/api/accounts/tv-login", async (req, res) => {
 
     // 3. Request TV Pairing code validation with auth API
     addLog(account, "📡 Validating code with authorization servers...");
-    const validateUrl = `${getApiBase(account)}/v1/auth/device/validate?user_code=${encodeURIComponent(userCode)}`;
+        const validateUrl = `${getApiBase(account)}/v1/auth/device/validate?user_code=${encodeURIComponent(userCode)}`;
     
     const validateRes = await axios.post(
       validateUrl,
       null, // content-length: 0 body
-      {
-        headers: getHeaders(account, "application/x-www-form-urlencoded"),
-        timeout: 15000,
-      }
+      getAxiosConfig(account, "application/x-www-form-urlencoded", 15000)
     );
 
     addLog(account, "🤝 Code validated. Waiting 2.5 seconds for device list synchronization...");
@@ -550,7 +560,7 @@ app.get("/api/settings", (req, res) => {
 
 // Update global settings
 app.post("/api/settings/update", (req, res) => {
-  const { scanInterval, selfPingUrl } = req.body;
+  const { scanInterval, selfPingUrl, proxyUrl } = req.body;
   const intervalVal = parseInt(scanInterval);
   if (isNaN(intervalVal) || intervalVal < 3) {
     return res.status(400).json({ error: "Scan interval must be a number of at least 3 seconds" });
@@ -559,6 +569,9 @@ app.post("/api/settings/update", (req, res) => {
   globalSettings.scanInterval = intervalVal;
   if (typeof selfPingUrl === "string") {
     globalSettings.selfPingUrl = selfPingUrl.trim();
+  }
+  if (typeof proxyUrl === "string") {
+    globalSettings.proxyUrl = proxyUrl.trim();
   }
   saveSettings();
 

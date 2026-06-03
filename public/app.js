@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Global settings
   const inputScanInterval = document.getElementById("setting-scan-interval");
   const inputSelfPingUrl = document.getElementById("setting-self-ping-url");
+  const inputProxyUrl = document.getElementById("setting-proxy-url");
   const btnSaveSettings = document.getElementById("btn-save-settings");
 
   let accounts = [];
@@ -50,6 +51,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (settings.selfPingUrl) {
           inputSelfPingUrl.value = settings.selfPingUrl;
         }
+        if (settings.proxyUrl !== undefined) {
+          inputProxyUrl.value = settings.proxyUrl;
+        }
       }
     } catch (err) {
       console.error("Error fetching settings:", err);
@@ -60,6 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
   btnSaveSettings.addEventListener("click", async () => {
     const scanInterval = parseInt(inputScanInterval.value);
     const selfPingUrl = inputSelfPingUrl.value.trim();
+    const proxyUrl = inputProxyUrl.value.trim();
     if (isNaN(scanInterval) || scanInterval < 3) {
       alert("Please enter a scan interval of at least 3 seconds.");
       return;
@@ -75,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/settings/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanInterval, selfPingUrl })
+        body: JSON.stringify({ scanInterval, selfPingUrl, proxyUrl })
       });
       const data = await res.json();
       if (data.success) {
