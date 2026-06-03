@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Account Device Manager</title>
+  <meta name="description" content="Parallel management for client accounts, token refreshers, and whitelisted devices.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;650;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-section">
+        <h1>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+          Accounts Manager
+        </h1>
+        <p>Parallel auto-logout protection and TV login whitelister</p>
+      </div>
+      <div>
+        <button class="btn-primary" id="btn-open-add-modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Account Box
+        </button>
+      </div>
+    </header>
+
+    <!-- Global Settings Bar -->
+    <div class="settings-bar" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">Polling Interval:</span>
+            <input type="number" id="setting-scan-interval" class="input-field" style="width: 65px; padding: 0.35rem; text-align: center; font-size: 0.85rem;" min="3" max="300" value="10">
+            <span style="font-size: 0.85rem; color: var(--text-secondary);">sec</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">Keep-Alive Ping URL:</span>
+            <input type="text" id="setting-self-ping-url" class="input-field" style="width: 250px; padding: 0.35rem; font-size: 0.85rem; background-color: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px;" placeholder="e.g. https://your-app.onrender.com/api/settings" value="xyz">
+          </div>
+        </div>
+      </div>
+      <div>
+        <button id="btn-save-settings" class="btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem; border-radius: 6px;">Apply Settings</button>
+      </div>
+    </div>
+
+    <main>
+      <div class="cards-grid" id="cards-grid">
+        <!-- Rendered dynamically by app.js -->
+        <div id="main-loader" style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-secondary);">
+          <div class="spinner" style="width: 2rem; height: 2rem; margin-bottom: 1rem;"></div>
+          <p>Connecting to backend service...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Account Modal -->
+  <div class="modal-overlay" id="add-account-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">Add Account Box</h2>
+        <button class="modal-close" id="btn-close-add-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="acc-name">Account Name (e.g. Client 1)</label>
+          <input type="text" id="acc-name" class="input-field" placeholder="Client Account">
+        </div>
+        
+        <div class="form-group">
+          <label for="acc-env">Environment Target</label>
+          <select id="acc-env" class="input-field" style="background-color: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; padding: 0.625rem; font-size: 0.875rem; cursor: pointer;">
+            <option value="prod">Production (vrptv.ctrp.astro.com.my)</option>
+            <option value="stage">Staging (web.vr.ctrp-stag.stgbpkastro.com)</option>
+          </select>
+        </div>
+        
+        <div class="tabs-header" style="display: flex; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+          <button class="tab-btn active" id="tab-json-btn">Paste Full JSON</button>
+          <button class="tab-btn" id="tab-manual-btn">Manual Tokens</button>
+        </div>
+
+        <!-- Full JSON section -->
+        <div id="section-json-input" class="form-group">
+          <label for="acc-json-data">Full Token JSON</label>
+          <textarea id="acc-json-data" class="input-field" style="height: 140px; font-family: monospace; font-size: 0.75rem;" placeholder='Paste entire JSON token object here (e.g. { "access_token": "...", "refresh_token": "..." })'></textarea>
+        </div>
+
+        <!-- Manual Tokens section (initially hidden) -->
+        <div id="section-manual-input" style="display: none; flex-direction: column; gap: 1rem;">
+          <div class="form-group">
+            <label for="acc-access-token">Access Token</label>
+            <textarea id="acc-access-token" class="input-field" style="height: 80px; font-family: monospace; font-size: 0.75rem;" placeholder="Paste access token jwt..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="acc-refresh-token">Refresh Token</label>
+            <textarea id="acc-refresh-token" class="input-field" style="height: 80px; font-family: monospace; font-size: 0.75rem;" placeholder="Paste refresh token jwt..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="btn-cancel-add">Cancel</button>
+        <button class="btn-primary" id="btn-submit-add">Add Box</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
