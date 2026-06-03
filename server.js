@@ -469,18 +469,9 @@ app.post("/api/accounts/tv-login", async (req, res) => {
   addLog(account, `📺 Initiating TV Login pairing with code: "${userCode}"...`);
 
   try {
-    // 2. Snapshot current active device list
-    addLog(account, "📸 Capturing baseline device list before validation...");
-    let devicesBefore = [];
-    try {
-      devicesBefore = await getDevicesList(account);
-    } catch (err) {
-      addLog(account, "⚠️ Baseline check failed, but will proceed with pairing");
-    }
-
-    // 3. Request TV Pairing code validation with auth API
+    // 2. Request TV Pairing code validation with auth API
     addLog(account, "📡 Validating code with authorization servers...");
-        const validateUrl = `${getApiBase(account)}/v1/auth/device/validate?user_code=${encodeURIComponent(userCode)}`;
+    const validateUrl = `${getApiBase(account)}/v1/auth/device/validate?user_code=${encodeURIComponent(userCode)}`;
     
     const validateRes = await axios.post(
       validateUrl,
@@ -488,71 +479,8 @@ app.post("/api/accounts/tv-login", async (req, res) => {
       getAxiosConfig(account, "application/x-www-form-urlencoded", 15000)
     );
 
-    addLog(account, "🤝 Code validated. Waiting 2 seconds for device list synchronization...");
-    
-    // 4. Wait for 2 seconds to let session list update
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // 5. Fetch updated devices list
-    addLog(account, "📸 Fetching updated device list after validation...");
-    const devicesAfter = await getDevicesList(account);
-
-    // 6. Find the newly registered device
-    let pairedDevice = null;
-    if (devicesAfter && devicesAfter.length > 0) {
-      // Find a device with deviceSegmentName === "Smart TV"
-      pairedDevice = devicesAfter.find(afterDev => 
-        afterDev.deviceSegmentName === "Smart TV" &&
-        !devicesBefore.some(beforeDev => beforeDev.deviceId === afterDev.deviceId)
-      );
-      if (!pairedDevice) {
-        pairedDevice = devicesAfter.find(afterDev => afterDev.deviceSegmentName === "Smart TV");
-      }
-      
-      // Fallback: If no Smart TV is found, find any new device
-      if (!pairedDevice) {
-        pairedDevice = devicesAfter.find(afterDev => 
-          !devicesBefore.some(beforeDev => beforeDev.deviceId === afterDev.deviceId)
-        );
-      }
-    }
-
-    if (pairedDevice && pairedDevice.deviceId) {
-      const newId = pairedDevice.deviceId;
-      addLog(account, `💡 Detected device: ${newId} (${pairedDevice.deviceName || "TV Device"}) [Segment: ${pairedDevice.deviceSegmentName || "unknown"}]`);
-      
-      if (!account.whitelist.includes(newId)) {
-        account.whitelist.push(newId);
-        saveAccounts();
-        addLog(account, `🎉 Successfully whitelisted device ID: ${newId}`);
-        io.emit("accounts_update", getSanitizedAccounts());
-        res.json({ success: true, deviceId: newId, message: "Successfully paired and whitelisted" });
-      } else {
-        addLog(account, `ℹ Device ${newId} was already whitelisted`);
-        res.json({ success: true, deviceId: newId, message: "Device was already whitelisted" });
-      }
-    } else {
-      // Fallback: If we couldn't resolve the difference, try to extract from response data or log it
-      const responseData = validateRes.data || {};
-      addLog(account, `⚠️ Pairing completed but no new device was detected in session list. API Response: ${JSON.stringify(responseData)}`);
-      
-      // Check if response contains device details directly
-      const fallbackDeviceId = responseData.deviceId || responseData.data?.deviceId;
-      if (fallbackDeviceId) {
-        addLog(account, `💡 Found device ID in response payload: ${fallbackDeviceId}`);
-        if (!account.whitelist.includes(fallbackDeviceId)) {
-          account.whitelist.push(fallbackDeviceId);
-          saveAccounts();
-          addLog(account, `🎉 Successfully whitelisted fallback device ID: ${fallbackDeviceId}`);
-          io.emit("accounts_update", getSanitizedAccounts());
-          return res.json({ success: true, deviceId: fallbackDeviceId, message: "Paired and whitelisted via response payload" });
-        }
-      }
-      
-      res.status(422).json({ 
-        error: "TV validated successfully, but could not auto-detect the new Device ID. Please check the logs or add the ID manually if it was deleted." 
-      });
-    }
+    addLog(account, "🎉 TV login code validated successfully! Please add the Device ID to your whitelist manually.");
+    res.json({ success: true, message: "Code validated successfully! Add the Device ID to whitelist manually." });
   } catch (err) {
     const errorMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
     addLog(account, `❌ TV pairing validation failed: ${errorMsg}`);
