@@ -7,6 +7,7 @@ const path = require("path");
 const axios = require("axios");
 const qs = require("querystring");
 const { HttpsProxyAgent } = require("https-proxy-agent");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -20,8 +21,66 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 3000;
 const ACCOUNTS_FILE = path.join(__dirname, "accounts.json");
 
+// Credentials configuration (supports uppercase / lowercase, falls back to admin/admin)
+const AUTH_USERNAME = process.env.username || process.env.USERNAME || "admin";
+const AUTH_PASSWORD = process.env.password || process.env.PASSWORD || "admin";
+
+// In-memory active session tokens
+const activeSessions = new Set();
+
+// Socket.io connection authorization middleware
+io.use((socket, next) => {
+  const rc = socket.handshake.headers.cookie;
+  const cookies = {};
+  if (rc) {
+    rc.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      cookies[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+  }
+  const token = cookies.session_token;
+  if (token && activeSessions.has(token)) {
+    next();
+  } else {
+    next(new Error("Authentication error"));
+  }
+});
+
 app.use(cors());
 app.use(express.json());
+
+// Custom cookies parser middleware
+app.use((req, res, next) => {
+  req.cookies = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      req.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+  }
+  next();
+});
+
+// Authentication verification middleware
+app.use((req, res, next) => {
+  const publicPaths = ["/login.html", "/api/login"];
+  if (publicPaths.includes(req.path)) {
+    return next();
+  }
+
+  const token = req.cookies?.session_token;
+  if (token && activeSessions.has(token)) {
+    return next();
+  }
+
+  if (req.path.startsWith("/api/")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  res.redirect("/login.html");
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 // ==========================================
@@ -341,6 +400,33 @@ function initializeLoops() {
 // ==========================================
 // API ENDPOINTS
 // ==========================================
+
+// Login endpoint
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password are required" });
+  }
+
+  if (username === AUTH_USERNAME && password === AUTH_PASSWORD) {
+    const token = crypto.randomBytes(32).toString("hex");
+    activeSessions.add(token);
+    res.setHeader("Set-Cookie", `session_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Strict`);
+    return res.json({ success: true });
+  } else {
+    return res.status(401).json({ error: "Invalid username or password" });
+  }
+});
+
+// Logout endpoint
+app.post("/api/logout", (req, res) => {
+  const token = req.cookies?.session_token;
+  if (token) {
+    activeSessions.delete(token);
+  }
+  res.setHeader("Set-Cookie", `session_token=; Path=/; HttpOnly; Max-Age=0; SameSite=Strict`);
+  res.json({ success: true });
+});
 
 // Get all accounts
 app.get("/api/accounts", (req, res) => {

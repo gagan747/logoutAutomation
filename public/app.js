@@ -19,8 +19,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let accounts = [];
 
+  // Intercept all fetch requests to handle 401 Unauthorized globally
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const res = await originalFetch(...args);
+    if (res.status === 401) {
+      window.location.href = "/login.html";
+      throw new Error("Unauthorized");
+    }
+    return res;
+  };
+
+  // Logout button event listener
+  const btnLogout = document.getElementById("btn-logout");
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+      try {
+        await fetch("/api/logout", { method: "POST" });
+        window.location.href = "/login.html";
+      } catch (err) {
+        console.error("Logout failed:", err);
+      }
+    });
+  }
+
   // Initialize WebSockets
   const socket = io();
+
+  // Socket authentication error handling
+  socket.on("connect_error", (err) => {
+    console.error("Socket connection error:", err.message);
+    if (err.message === "Authentication error") {
+      window.location.href = "/login.html";
+    }
+  });
 
   // Fetch initial accounts list
   async function fetchAccounts() {
