@@ -22,8 +22,8 @@ const PORT = process.env.PORT || 3000;
 const ACCOUNTS_FILE = path.join(__dirname, "accounts.json");
 
 // Credentials configuration (supports uppercase / lowercase, falls back to admin/admin)
-const AUTH_USERNAME = process.env.username || process.env.USERNAME || "admin";
-const AUTH_PASSWORD = process.env.password || process.env.PASSWORD || "admin";
+const AUTH_USERNAME = process.env.username || process.env.USERNAME || "admin77";
+const AUTH_PASSWORD = process.env.password || process.env.PASSWORD || "admin77";
 
 // In-memory active session tokens
 const activeSessions = new Set();
